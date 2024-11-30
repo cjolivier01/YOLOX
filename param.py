@@ -184,7 +184,7 @@ def fix_params(input: str, pattern: str, output: str):
     final_pattern_checkpoint: Dict[str, Any] = torch.load(pattern)
     assert len(final_pattern_checkpoint["model"]) == len(input_state_dict)
     assert set(final_pattern_checkpoint["model"].keys()) == set(input_state_dict.keys())
-
+    del final_pattern_checkpoint["model"]
     final_pattern_checkpoint["model"] = input_state_dict
     torch.save(final_pattern_checkpoint, output)
 
