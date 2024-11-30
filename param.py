@@ -85,15 +85,8 @@ REPLACE_MAP: List[Tuple[str, str, bool]] = [
     (".main_conv.", ".conv1.", False),
     (".short_conv.", ".conv2.", False),
     (".final_conv.", ".conv3.", False),
-    # (".dark2.1.main_conv.", ".dark2.1.conv1.", False),
-    # (".dark2.1.short_conv.", ".dark2.1.conv2.", False),
-    # (".dark2.1.final_conv.", ".dark2.1.conv3.", False),
     (".blocks.", ".m.", False),
-    # ??
     ("neck.reduce_layers.0.", "backbone.lateral_conv0.", True),
-    # ("neck.reduce_layers.1.", "backbone.C3_p4.conv1.", True),
-    # ("neck.top_down_blocks.0.", "backbone.C3_p4.", True),
-    # ("neck.top_down_blocks.1.", "backbone.C3_p3.", True),
     ("bbox_head.multi_level_cls_convs.", "head.cls_convs.", True),
     ("bbox_head.multi_level_reg_convs.", "head.reg_convs.", True),
     ("bbox_head.multi_level_conv_cls.", "head.cls_preds.", True),
@@ -132,10 +125,11 @@ def print_keys_and_shapes(keys: List[str], state_dict: OrderedDict[str, Any]) ->
     dd: OrderedDict[str, Any] = OrderedDict()
     for k in keys:
         dd[k] = state_dict[k]
-    print_keys(dd)
+    if dd:
+        print_keys(dd)
 
 
-def fix_params(input: str, output: str):
+def fix_params(input: str, pattern: str, output: str):
     input_checkpoint = torch.load(input)
     input_state_dict = get_state_dict(input_checkpoint)
     input_state_dict = drop_prefixed_params(input_state_dict, "ema_")
@@ -147,7 +141,7 @@ def fix_params(input: str, output: str):
             input_state_dict, from_str, to_str, beginning_only=beginning_only
         )
 
-    pattern_checkpoint = torch.load("yolox_s.pth")
+    pattern_checkpoint = torch.load(pattern)
     pattern_state_dict = get_state_dict(pattern_checkpoint)
 
     # TEMP: focus on backbone only
@@ -187,9 +181,17 @@ def fix_params(input: str, output: str):
     if mismatch_count:
         print(f"\nMismatch count: {mismatch_count}")
 
+    final_pattern_checkpoint: Dict[str, Any] = torch.load(pattern)
+    assert len(final_pattern_checkpoint["model"]) == len(input_state_dict)
+    assert set(final_pattern_checkpoint["model"].keys()) == set(input_state_dict.keys())
+
+    final_pattern_checkpoint["model"] = input_state_dict
+    torch.save(final_pattern_checkpoint, output)
+
 
 if __name__ == "__main__":
     input_file: str = "yolox_s_8x8_300e_coco_80e_ch.pth"
+    pattern_file: str = "yolox_s.pth"
     output_file: str = "test_output_yolox_s_coco300_ch80.pth"
-    fix_params(input_file, output_file)
+    fix_params(input_file, pattern_file, output_file)
     print("Done.")
